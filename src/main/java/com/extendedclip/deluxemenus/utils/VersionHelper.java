@@ -2,7 +2,6 @@ package com.extendedclip.deluxemenus.utils;
 
 import com.google.common.primitives.Ints;
 import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.event.inventory.InventoryType;
 import org.jetbrains.annotations.NotNull;
 
@@ -35,16 +34,8 @@ public final class VersionHelper {
     private static final int V1_13 = 1130;
     // PDC and customModelData
     private static final int V1_14 = 1140;
-    // Hex colors
-    private static final int V1_16 = 1160;
-    // Paper adventure changes
-    private static final int V1_16_5 = 1165;
-    // SkullMeta#setOwningPlayer was added
-    private static final int V1_12 = 1120;
 
     public static final int CURRENT_VERSION = getCurrentVersion();
-
-    private static final boolean IS_PAPER = checkPaper();
 
     /**
      * Checks if the current version includes the setTooltipStyle and setItemModel
@@ -71,13 +62,6 @@ public final class VersionHelper {
     public static final boolean HAS_OBFUSCATED_NAMES = CURRENT_VERSION >= V1_17;
 
     /**
-     * Checks if the version supports Components or not
-     * Paper versions above 1.16.5 would be true
-     * Spigot always false
-     */
-    public static final boolean IS_COMPONENT = IS_PAPER && CURRENT_VERSION >= V1_16_5;
-
-    /**
      * Checks if the version is lower than 1.13 due to the item changes
      */
     public static final boolean IS_ITEM_LEGACY = CURRENT_VERSION < V1_13;
@@ -88,17 +72,9 @@ public final class VersionHelper {
     public static final boolean IS_PDC_VERSION = CURRENT_VERSION >= V1_14;
 
     /**
-     * Checks if the version doesn't have {@link org.bukkit.inventory.meta.SkullMeta#setOwningPlayer(OfflinePlayer)} and
-     * {@link org.bukkit.inventory.meta.SkullMeta#setOwner(String)} should be used instead
-     */
-    public static final boolean IS_SKULL_OWNER_LEGACY = CURRENT_VERSION <= V1_12;
-
-    /**
      * Checks if the version has {@link org.bukkit.inventory.meta.ItemMeta#setCustomModelData(Integer)}
      */
     public static final boolean IS_CUSTOM_MODEL_DATA = CURRENT_VERSION >= V1_14;
-
-    public static final boolean IS_HEX_VERSION = CURRENT_VERSION >= V1_16;
 
     private static List<InventoryType> CHEST_INVENTORY_TYPES = null;
 
@@ -147,21 +123,6 @@ public final class VersionHelper {
 
         VALID_INVENTORY_TYPES = validInventoryTypes;
         return VALID_INVENTORY_TYPES;
-    }
-
-    /**
-     * Check if the server has access to the Paper API
-     * Taken from <a href="https://github.com/PaperMC/PaperLib">PaperLib</a>
-     *
-     * @return True if on Paper server (or forks), false anything else
-     */
-    private static boolean checkPaper() {
-        try {
-            Class.forName("com.destroystokyo.paper.PaperConfig");
-            return true;
-        } catch (ClassNotFoundException ignored) {
-            return false;
-        }
     }
 
     /**

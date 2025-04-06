@@ -136,13 +136,9 @@ public class SkullUtils {
 
         final OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerName);
 
-        if (!VersionHelper.IS_SKULL_OWNER_LEGACY) {
-            headMeta.setOwningPlayer(offlinePlayer);
-        } else {
-            headMeta.setOwner(offlinePlayer.getName());
-        }
-
+        headMeta.setOwningPlayer(offlinePlayer);
         head.setItemMeta(headMeta);
+
         return head;
     }
 
@@ -150,12 +146,9 @@ public class SkullUtils {
         if (skull == null || !(skull.getItemMeta() instanceof SkullMeta)) return null;
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
 
-        if (!VersionHelper.IS_SKULL_OWNER_LEGACY) {
-            if (meta.getOwningPlayer() == null) return null;
-            return meta.getOwningPlayer().getName();
-        }
+        if (meta.getOwningPlayer() == null) return null;
+        return meta.getOwningPlayer().getName();
 
-        return meta.getOwner();
     }
 
     /**
