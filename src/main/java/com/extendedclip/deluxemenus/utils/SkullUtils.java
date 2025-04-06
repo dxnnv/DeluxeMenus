@@ -1,5 +1,6 @@
 package com.extendedclip.deluxemenus.utils;
 
+import com.destroystokyo.paper.profile.PlayerProfile;
 import com.extendedclip.deluxemenus.DeluxeMenus;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
@@ -10,7 +11,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
-import org.bukkit.profile.PlayerProfile;
 import org.bukkit.profile.PlayerTextures;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -59,7 +59,10 @@ public class SkullUtils {
 
         if (VersionHelper.HAS_PLAYER_PROFILES) {
             final PlayerProfile profile = getPlayerProfile(plugin, base64Url);
-            headMeta.setOwnerProfile(profile);
+            if (profile.getId() == null) return head;
+
+            final OfflinePlayer owner = Bukkit.getOfflinePlayer(profile.getId());
+            headMeta.setOwningPlayer(owner);
             head.setItemMeta(headMeta);
             return head;
         }
@@ -85,10 +88,10 @@ public class SkullUtils {
         SkullMeta meta = (SkullMeta) item.getItemMeta();
 
         if (VersionHelper.HAS_PLAYER_PROFILES) {
-            PlayerProfile profile = meta.getOwnerProfile();
-            if (profile == null) return null;
+            OfflinePlayer owner = meta.getOwningPlayer();
+            if (owner == null) return null;
 
-            URL url = profile.getTextures().getSkin();
+            URL url = owner.getPlayerProfile().getTextures().getSkin();
             if (url == null) return null;
 
             return url.toString().substring("https://textures.minecraft.net/texture/".length() - 1);
@@ -173,7 +176,7 @@ public class SkullUtils {
      */
     @NotNull
     private static PlayerProfile getPlayerProfile(@NotNull final DeluxeMenus plugin, @NotNull final String base64Url) {
-        final PlayerProfile profile = Bukkit.createPlayerProfile(UUID.randomUUID());
+        final PlayerProfile profile = plugin.getServer().createProfile(UUID.randomUUID());
 
         final String decodedBase64 = decodeSkinUrl(base64Url);
         if (decodedBase64 == null) {
