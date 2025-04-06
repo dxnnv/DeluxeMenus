@@ -1,19 +1,19 @@
 package com.extendedclip.deluxemenus.persistentmeta;
 
 import com.extendedclip.deluxemenus.DeluxeMenus;
-import java.util.Arrays;
-import java.util.Locale;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.logging.Level;
-import java.util.stream.Collectors;
-
 import com.extendedclip.deluxemenus.utils.DebugLevel;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Arrays;
+import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 public class PersistentMetaHandler {
 

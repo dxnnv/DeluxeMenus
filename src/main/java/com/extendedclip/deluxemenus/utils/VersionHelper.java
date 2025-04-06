@@ -1,15 +1,15 @@
 package com.extendedclip.deluxemenus.utils;
 
 import com.google.common.primitives.Ints;
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.event.inventory.InventoryType;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
-import org.bukkit.event.inventory.InventoryType;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Class for detecting server version.
@@ -181,7 +181,6 @@ public final class VersionHelper {
             else stringBuilder.append(patch.replace(".", ""));
         }
 
-        //noinspection UnstableApiUsage
         final Integer version = Ints.tryParse(stringBuilder.toString());
 
         // Should never fail

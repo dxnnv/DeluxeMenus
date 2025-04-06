@@ -2,6 +2,7 @@ package com.extendedclip.deluxemenus.requirement;
 
 import com.extendedclip.deluxemenus.action.ClickHandler;
 import com.extendedclip.deluxemenus.menu.MenuHolder;
+
 import java.util.List;
 
 public class RequirementList {
@@ -30,7 +31,7 @@ public class RequirementList {
         if (r.getDenyHandler() != null) {
           r.getDenyHandler().onClick(holder);
         }
-        if (!r.isOptional()) {
+        if (r.isRequired()) {
           return false;
         }
       }

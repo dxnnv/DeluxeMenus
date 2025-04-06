@@ -1,14 +1,7 @@
 package com.extendedclip.deluxemenus.command;
 
 import com.extendedclip.deluxemenus.DeluxeMenus;
-import com.extendedclip.deluxemenus.command.subcommand.DumpCommand;
-import com.extendedclip.deluxemenus.command.subcommand.ExecuteCommand;
-import com.extendedclip.deluxemenus.command.subcommand.HelpCommand;
-import com.extendedclip.deluxemenus.command.subcommand.ListCommand;
-import com.extendedclip.deluxemenus.command.subcommand.OpenCommand;
-import com.extendedclip.deluxemenus.command.subcommand.ReloadCommand;
-import com.extendedclip.deluxemenus.command.subcommand.SubCommand;
-import com.extendedclip.deluxemenus.utils.DebugLevel;
+import com.extendedclip.deluxemenus.command.subcommand.*;
 import com.extendedclip.deluxemenus.utils.Messages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextReplacementConfig;
@@ -19,12 +12,7 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabExecutor;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.logging.Level;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static net.kyori.adventure.text.Component.text;

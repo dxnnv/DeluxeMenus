@@ -48,7 +48,7 @@ public class HasMetaRequirement extends Requirement {
           long toCheck = Long.parseLong(expected);
           boolean pass = metaNum >= toCheck;
           return invert != pass;
-        } catch (Exception ex) {
+        } catch (Exception ignored) {
         }
       case "DOUBLE":
         try {
@@ -56,7 +56,7 @@ public class HasMetaRequirement extends Requirement {
           double toCheck = Double.parseDouble(expected);
           boolean pass = metaNum >= toCheck;
           return invert != pass;
-        } catch (Exception ex) {
+        } catch (Exception ignored) {
         }
     }
     return invert;

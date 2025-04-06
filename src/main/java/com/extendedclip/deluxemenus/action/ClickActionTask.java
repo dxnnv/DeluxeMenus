@@ -3,12 +3,7 @@ package com.extendedclip.deluxemenus.action;
 import com.extendedclip.deluxemenus.DeluxeMenus;
 import com.extendedclip.deluxemenus.menu.Menu;
 import com.extendedclip.deluxemenus.menu.MenuHolder;
-import com.extendedclip.deluxemenus.utils.AdventureUtils;
-import com.extendedclip.deluxemenus.utils.DebugLevel;
-import com.extendedclip.deluxemenus.utils.ExpUtils;
-import com.extendedclip.deluxemenus.utils.SoundUtils;
-import com.extendedclip.deluxemenus.utils.StringUtils;
-import com.extendedclip.deluxemenus.utils.VersionHelper;
+import com.extendedclip.deluxemenus.utils.*;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
@@ -17,12 +12,7 @@ import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Level;
 
 public class ClickActionTask extends BukkitRunnable {
@@ -112,11 +102,11 @@ public class ClickActionTask extends BukkitRunnable {
                 break;
 
             case MINI_MESSAGE:
-                plugin.audiences().player(player).sendMessage(MiniMessage.miniMessage().deserialize(executable));
+                player.sendMessage(MiniMessage.miniMessage().deserialize(executable));
                 break;
 
             case MINI_BROADCAST:
-                plugin.audiences().all().sendMessage(MiniMessage.miniMessage().deserialize(executable));
+                plugin.getServer().broadcast(MiniMessage.miniMessage().deserialize(executable));
                 break;
 
             case MESSAGE:
@@ -124,7 +114,7 @@ public class ClickActionTask extends BukkitRunnable {
                 break;
 
             case BROADCAST:
-                Bukkit.broadcastMessage(StringUtils.color(executable));
+                plugin.getServer().broadcast(StringUtils.color(executable));
                 break;
 
             case CLOSE:
@@ -240,12 +230,12 @@ public class ClickActionTask extends BukkitRunnable {
                 break;
 
             case JSON_MESSAGE:
-                AdventureUtils.sendJson(plugin, player, executable);
+                StringUtils.sendJson(player, executable);
                 break;
 
             case JSON_BROADCAST:
             case BROADCAST_JSON:
-                plugin.audiences().all().sendMessage(AdventureUtils.fromJson(executable));
+                plugin.getServer().broadcast(StringUtils.fromJson(executable));
                 break;
 
             case REFRESH:

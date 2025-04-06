@@ -11,11 +11,9 @@ import com.extendedclip.deluxemenus.utils.ItemUtils;
 import com.extendedclip.deluxemenus.utils.StringUtils;
 import com.extendedclip.deluxemenus.utils.VersionHelper;
 import com.google.common.collect.ImmutableMultimap;
-import org.bukkit.Color;
-import org.bukkit.FireworkEffect;
-import org.bukkit.Material;
-import org.bukkit.Registry;
-import org.bukkit.NamespacedKey;
+import io.papermc.paper.registry.RegistryKey;
+import net.kyori.adventure.text.Component;
+import org.bukkit.*;
 import org.bukkit.block.Banner;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.type.Light;
@@ -24,34 +22,20 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemRarity;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ArmorMeta;
-import org.bukkit.inventory.meta.BannerMeta;
-import org.bukkit.inventory.meta.BlockDataMeta;
-import org.bukkit.inventory.meta.BlockStateMeta;
-import org.bukkit.inventory.meta.Damageable;
-import org.bukkit.inventory.meta.EnchantmentStorageMeta;
-import org.bukkit.inventory.meta.FireworkEffectMeta;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.LeatherArmorMeta;
-import org.bukkit.inventory.meta.PotionMeta;
+import org.bukkit.inventory.meta.*;
 import org.bukkit.inventory.meta.trim.ArmorTrim;
 import org.bukkit.inventory.meta.trim.TrimMaterial;
 import org.bukkit.inventory.meta.trim.TrimPattern;
 import org.bukkit.potion.PotionEffect;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Arrays;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Objects;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 import static com.extendedclip.deluxemenus.utils.Constants.INVENTORY_ITEM_ACCESSORS;
 import static com.extendedclip.deluxemenus.utils.Constants.PLACEHOLDER_PREFIX;
+import static io.papermc.paper.registry.RegistryAccess.registryAccess;
 
 public class MenuItem {
 
@@ -234,13 +218,13 @@ public class MenuItem {
 
         if (this.options.displayName().isPresent()) {
             final String displayName = holder.setPlaceholdersAndArguments(this.options.displayName().get());
-            itemMeta.setDisplayName(StringUtils.color(displayName));
+            itemMeta.displayName(StringUtils.color(displayName));
         }
 
-        List<String> lore = new ArrayList<>();
+        List<Component> lore = new ArrayList<>();
         // This checks if a lore should be kept from the hooked item, and then if a lore exists on the item
         // ItemMeta.getLore is nullable. In that case, we just create a new ArrayList so we don't add stuff to a null list.
-        List<String> itemLore = Objects.requireNonNullElse(itemMeta.getLore(), new ArrayList<>());
+        List<Component> itemLore = Objects.requireNonNullElse(itemMeta.lore(), new ArrayList<>());
         // Ensures backwards compatibility with how hooked items are currently handled
         LoreAppendMode mode = this.options.loreAppendMode().orElse(LoreAppendMode.OVERRIDE);
         if (!this.options.hasLore() && this.options.loreAppendMode().isEmpty()) mode = LoreAppendMode.IGNORE;
@@ -261,7 +245,7 @@ public class MenuItem {
                 break;
         }
 
-        itemMeta.setLore(lore);
+        itemMeta.lore(lore);
 
         if (this.options.unbreakable()) {
             itemMeta.setUnbreakable(true);
@@ -305,8 +289,14 @@ public class MenuItem {
             final Optional<String> trimPatternName = this.options.trimPattern();
 
             if (trimMaterialName.isPresent() && trimPatternName.isPresent()) {
-                final TrimMaterial trimMaterial = Registry.TRIM_MATERIAL.match(holder.setPlaceholdersAndArguments(trimMaterialName.get()));
-                final TrimPattern trimPattern = Registry.TRIM_PATTERN.match(holder.setPlaceholdersAndArguments(trimPatternName.get()));
+                Registry<@NotNull TrimMaterial> trimMaterials = registryAccess().getRegistry(RegistryKey.TRIM_MATERIAL);
+                Registry<@NotNull TrimPattern> trimPatterns = registryAccess().getRegistry(RegistryKey.TRIM_PATTERN);
+
+                NamespacedKey trimMaterialKey = NamespacedKey.fromString(holder.setPlaceholdersAndArguments(trimMaterialName.get()).toLowerCase());
+                NamespacedKey trimPatternKey = NamespacedKey.fromString(holder.setPlaceholdersAndArguments(trimPatternName.get()).toLowerCase());
+
+                final TrimMaterial trimMaterial = trimMaterialKey != null ? trimMaterials.get(trimMaterialKey) : null;
+                final TrimPattern trimPattern = trimPatternKey != null ? trimPatterns.get(trimPatternKey) : null;
 
                 if (trimMaterial != null && trimPattern != null) {
                     final ArmorTrim armorTrim = new ArmorTrim(trimMaterial, trimPattern);
@@ -336,13 +326,11 @@ public class MenuItem {
                         Level.WARNING,
                         "Trim pattern is not set for item with trim material " + trimMaterialName.get()
                 );
-            } else if (trimPatternName.isPresent()) {
-                plugin.debug(
-                        DebugLevel.HIGHEST,
-                        Level.WARNING,
-                        "Trim material is not set for item with trim pattern " + trimPatternName.get()
-                );
-            }
+            } else trimPatternName.ifPresent(s -> plugin.debug(
+                    DebugLevel.HIGHEST,
+                    Level.WARNING,
+                    "Trim material is not set for item with trim pattern " + s
+            ));
         }
 
         if (itemMeta instanceof LeatherArmorMeta && this.options.rgb().isPresent()) {
@@ -385,7 +373,7 @@ public class MenuItem {
                     plugin.debug(
                             DebugLevel.HIGHEST,
                             Level.INFO,
-                            "Failed to add enchantment " + entry.getKey().getName() + " to item " + itemStack.getType()
+                            "Failed to add enchantment " + entry.getKey().displayName(entry.getValue()) + " to item " + itemStack.getType()
                     );
                 }
             }
@@ -537,14 +525,10 @@ public class MenuItem {
         return plugin.getItemHook(hookName).map(itemHook -> itemHook.getItem(args));
     }
 
-    private List<String> getMenuItemLore(@NotNull final MenuHolder holder, @NotNull final List<String> lore) {
+    private List<Component> getMenuItemLore(@NotNull final MenuHolder holder, @NotNull final List<String> lore) {
         return lore.stream()
                 .map(holder::setPlaceholdersAndArguments)
                 .map(StringUtils::color)
-                .map(line -> line.split("\n"))
-                .flatMap(Arrays::stream)
-                .map(line -> line.split("\\\\n"))
-                .flatMap(Arrays::stream)
                 .collect(Collectors.toList());
     }
 

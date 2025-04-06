@@ -1,11 +1,12 @@
 package com.extendedclip.deluxemenus.utils;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public enum DebugLevel {
     LOWEST(0, "LOWEST"),
@@ -17,7 +18,7 @@ public enum DebugLevel {
     private final String[] names;
     private final int priority;
 
-    private DebugLevel(final int priority, @NotNull final String... names) {
+    DebugLevel(final int priority, @NotNull final String... names) {
         this.priority = priority;
         this.names = names;
     }

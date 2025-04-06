@@ -1,5 +1,7 @@
 package com.extendedclip.deluxemenus.requirement.wrappers;
 
+import net.kyori.adventure.text.Component;
+
 import java.util.List;
 
 public class ItemWrapper {
@@ -7,7 +9,7 @@ public class ItemWrapper {
     private String material = null;
     private String name = null;
     private String lore = null;
-    private List<String> loreList = null;
+    private List<Component> loreList = null;
 
     private short data = 0;
     private boolean hasData = false;
@@ -48,11 +50,11 @@ public class ItemWrapper {
         this.lore = lore;
     }
 
-    public List<String> getLoreList() {
+    public List<Component> getLoreList() {
         return loreList;
     }
 
-    public void setLoreList(List<String> loreList) {
+    public void setLoreList(List<Component> loreList) {
         this.loreList = loreList;
     }
 

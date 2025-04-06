@@ -31,8 +31,8 @@ public abstract class Requirement {
     return this.denyHandler != null;
   }
 
-  public boolean isOptional() {
-    return optional;
+  public boolean isRequired() {
+    return !optional;
   }
 
   public void setOptional(boolean optional) {

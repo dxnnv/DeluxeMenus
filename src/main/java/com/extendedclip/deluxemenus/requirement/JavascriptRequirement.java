@@ -3,10 +3,6 @@ package com.extendedclip.deluxemenus.requirement;
 import com.extendedclip.deluxemenus.DeluxeMenus;
 import com.extendedclip.deluxemenus.menu.MenuHolder;
 import com.extendedclip.deluxemenus.utils.DebugLevel;
-import java.util.logging.Level;
-import javax.script.ScriptEngineFactory;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.ServicePriority;
@@ -14,10 +10,13 @@ import org.bukkit.plugin.ServicesManager;
 import org.jetbrains.annotations.NotNull;
 import org.openjdk.nashorn.api.scripting.NashornScriptEngineFactory;
 
+import javax.script.ScriptEngineFactory;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
+import java.util.logging.Level;
+
 public class JavascriptRequirement extends Requirement {
 
-  private final ScriptEngineFactory factory = new NashornScriptEngineFactory();
-  private final ServicesManager manager = Bukkit.getServer().getServicesManager();
   private static ScriptEngineManager engine;
   private final DeluxeMenus plugin;
   private final String expression;
@@ -26,13 +25,17 @@ public class JavascriptRequirement extends Requirement {
     this.plugin = plugin;
     this.expression = expression;
     if (engine == null) {
+      ServicesManager manager = Bukkit.getServer().getServicesManager();
       if (manager.isProvidedFor(ScriptEngineManager.class)) {
-        final RegisteredServiceProvider provider = manager.getRegistration(ScriptEngineManager.class);
-        engine = (ScriptEngineManager) provider.getProvider();
+        final RegisteredServiceProvider<ScriptEngineManager> provider = manager.getRegistration(ScriptEngineManager.class);
+        if (provider != null) {
+          engine = provider.getProvider();
+        }
       } else {
         engine = new ScriptEngineManager();
         manager.register(ScriptEngineManager.class, engine, plugin, ServicePriority.Highest);
       }
+      ScriptEngineFactory factory = new NashornScriptEngineFactory();
       engine.registerEngineName("JavaScript", factory);
       engine.put("BukkitServer", Bukkit.getServer());
     }

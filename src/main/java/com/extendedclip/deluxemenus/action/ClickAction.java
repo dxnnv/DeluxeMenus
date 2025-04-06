@@ -3,9 +3,10 @@ package com.extendedclip.deluxemenus.action;
 import com.extendedclip.deluxemenus.menu.MenuHolder;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Longs;
-import java.util.concurrent.ThreadLocalRandom;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.concurrent.ThreadLocalRandom;
 
 public class ClickAction {
 
@@ -102,7 +103,6 @@ public class ClickAction {
    * @param holder the holder to parse placeholders in the delay for.
    * @return the parsed delay
    */
-  @SuppressWarnings("UnstableApiUsage")
   public long getDelay(@NotNull final MenuHolder holder) {
     if (delay == null || delay.isEmpty()) {
       return 0;
@@ -119,7 +119,6 @@ public class ClickAction {
    * @param holder the holder to parse placeholders in the chance for.
    * @return true if the chance has passed, false otherwise
    */
-  @SuppressWarnings("UnstableApiUsage")
   public boolean checkChance(@NotNull final MenuHolder holder) {
     if (chance == null) {
       return true;

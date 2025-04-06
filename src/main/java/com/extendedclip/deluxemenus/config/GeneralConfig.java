@@ -8,7 +8,7 @@ public class GeneralConfig {
     private final DeluxeMenus plugin;
 
     private boolean checkForUpdates = true;
-    private DebugLevel debugLevel = getDefaultDebugLevel();
+    private DebugLevel debugLevel = DebugLevel.LOW;
     private boolean useAdminCommandsInMenusList = false;
     private int menusListPageSize = 10;
 
@@ -63,10 +63,6 @@ public class GeneralConfig {
         }
 
         final DebugLevel debugLevel = DebugLevel.getByName(configDebugLevel);
-        return debugLevel == null ? getDefaultDebugLevel() : debugLevel;
-    }
-
-    private DebugLevel getDefaultDebugLevel() {
-        return DebugLevel.LOW;
+        return debugLevel == null ? DebugLevel.LOW : debugLevel;
     }
 }

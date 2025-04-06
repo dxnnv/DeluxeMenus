@@ -6,11 +6,17 @@ import com.extendedclip.deluxemenus.menu.MenuHolder;
 import com.extendedclip.deluxemenus.requirement.wrappers.ItemWrapper;
 import com.extendedclip.deluxemenus.utils.StringUtils;
 import com.extendedclip.deluxemenus.utils.VersionHelper;
-import java.util.List;
-import java.util.stream.Collectors;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class HasItemRequirement extends Requirement {
 
@@ -46,20 +52,20 @@ public class HasItemRequirement extends Requirement {
 
     int total = 0;
     for (ItemStack itemToCheck: inventory) {
-      if (!isRequiredItem(itemToCheck, holder, material, pluginHook)) continue;
+      if (isNotRequiredItem(itemToCheck, holder, material, pluginHook)) continue;
       total += itemToCheck.getAmount();
     }
 
     if (offHand != null) {
       for (ItemStack itemToCheck: offHand) {
-        if (!isRequiredItem(itemToCheck, holder, material, pluginHook)) continue;
+        if (isNotRequiredItem(itemToCheck, holder, material, pluginHook)) continue;
         total += itemToCheck.getAmount();
       }
     }
 
     if (armor != null) {
       for (ItemStack itemToCheck: armor) {
-        if (!isRequiredItem(itemToCheck, holder, material, pluginHook)) continue;
+        if (isNotRequiredItem(itemToCheck, holder, material, pluginHook)) continue;
         total += itemToCheck.getAmount();
       }
     }
@@ -67,96 +73,118 @@ public class HasItemRequirement extends Requirement {
     return invert == (total < wrapper.getAmount());
   }
 
-  private boolean isRequiredItem(ItemStack itemToCheck, MenuHolder holder, Material material, ItemHook pluginHook) {
-    if (itemToCheck == null || itemToCheck.getType() == Material.AIR) return false;
-
+  private boolean isNotRequiredItem(ItemStack itemToCheck, MenuHolder holder, Material material, ItemHook pluginHook) {
+    if (itemToCheck == null || itemToCheck.getType() == Material.AIR) return true;
+    ItemMeta meta = itemToCheck.hasItemMeta() ? itemToCheck.getItemMeta() : null;
     if (pluginHook != null) {
-      if (!pluginHook.itemMatchesIdentifiers(itemToCheck, holder.setPlaceholdersAndArguments(wrapper.getMaterial().substring(pluginHook.getPrefix().length())))) return false;
+      if (!pluginHook.itemMatchesIdentifiers(itemToCheck, holder.setPlaceholdersAndArguments(wrapper.getMaterial().substring(pluginHook.getPrefix().length()))))
+        return true;
+    } else if (wrapper.getMaterial() != null && itemToCheck.getType() != material) return true;
+    if (meta != null) {
+      Damageable damageable = meta instanceof Damageable ? (Damageable) meta : null;
+      Integer durability = ((damageable != null) && damageable.hasDamage()) ? damageable.getDamage() : null;
+      if (wrapper.hasData() && (durability != null && durability != wrapper.getData())) return true;
     }
-    else if (wrapper.getMaterial() != null && itemToCheck.getType() != material) return false;
-    if (wrapper.hasData() && itemToCheck.getDurability() != wrapper.getData()) return false;
 
-    ItemMeta metaToCheck = itemToCheck.getItemMeta();
     if (wrapper.isStrict()) {
-      if (metaToCheck != null) {
+      if (meta != null) {
         if (VersionHelper.IS_CUSTOM_MODEL_DATA) {
-          if (metaToCheck.hasCustomModelData()) return false;
+          if (meta.hasCustomModelData()) return true;
         }
-        if (metaToCheck.hasLore()) return false;
-        return !metaToCheck.hasDisplayName();
+        if (meta.hasLore()) return true;
+        return meta.hasDisplayName();
       }
 
     } else {
-      if ((wrapper.getCustomData() != 0 || wrapper.getName() != null || wrapper.getLore() != null) && metaToCheck == null)
-        return false;
+      if ((wrapper.getCustomData() != 0 || wrapper.getName() != null || wrapper.getLore() != null) && meta == null)
+        return true;
 
       if (wrapper.getCustomData() != 0) {
         if (VersionHelper.IS_CUSTOM_MODEL_DATA) {
-          if (!metaToCheck.hasCustomModelData()) return false;
-          if (metaToCheck.getCustomModelData() != wrapper.getCustomData()) return false;
+          if (meta != null && !meta.hasCustomModelData()) return true;
+          if (meta != null && meta.getCustomModelData() != wrapper.getCustomData()) return true;
         }
       }
 
-      if (wrapper.getName() != null) {
-        if (!metaToCheck.hasDisplayName()) return false;
+      if (meta != null && wrapper.getName() != null) {
+        if (!meta.hasDisplayName()) return true;
 
-        String name = StringUtils.color(holder.setPlaceholdersAndArguments(wrapper.getName()));
-        String nameToCheck = StringUtils.color(holder.setPlaceholdersAndArguments(metaToCheck.getDisplayName()));
+        String name = MiniMessage.miniMessage().stripTags(holder.setPlaceholdersAndArguments(wrapper.getName()));
+        String nameToCheck = meta.hasDisplayName()
+                ? MiniMessage.miniMessage().stripTags(
+                holder.setPlaceholdersAndArguments(
+                        PlainTextComponentSerializer.plainText().serialize(
+                                Objects.requireNonNull(meta.displayName()))))
+                : itemToCheck.getType().name();
 
         if (wrapper.checkNameContains() && wrapper.checkNameIgnoreCase()) {
-          if (!org.apache.commons.lang3.StringUtils.containsIgnoreCase(nameToCheck, name)) return false;
+          if (!org.apache.commons.lang3.StringUtils.containsIgnoreCase(nameToCheck, name)) return true;
         }
         else if (wrapper.checkNameContains()) {
-          if (!nameToCheck.contains(name)) return false;
+          if (!nameToCheck.contains(name)) return true;
         }
         else if (wrapper.checkNameIgnoreCase()) {
-          if (!nameToCheck.equalsIgnoreCase(name)) return false;
+          if (!nameToCheck.equalsIgnoreCase(name)) return true;
         }
         else if (!nameToCheck.equals(name)) {
-          return false;
+          return true;
         }
       }
 
+      List<Component> loreX;
       if (wrapper.getLoreList() != null) {
-        List<String> loreX = metaToCheck.getLore();
-        if (loreX == null) return false;
+        loreX = meta != null && meta.hasLore() ? meta.lore() : null;
+        if (loreX == null) return true;
 
-        String lore = wrapper.getLoreList().stream().map(holder::setPlaceholdersAndArguments).map(StringUtils::color).collect(Collectors.joining("&&"));
-        String loreToCheck = loreX.stream().map(holder::setPlaceholdersAndArguments).map(StringUtils::color).collect(Collectors.joining("&&"));
+
+        List<Component> lore = wrapper.getLoreList();
+        List<Component> loreToCheck = loreX;
 
         if (wrapper.checkLoreContains() && wrapper.checkLoreIgnoreCase()) {
-          if (!org.apache.commons.lang3.StringUtils.containsIgnoreCase(loreToCheck, lore)) return false;
+          if (loreToCheck.stream().noneMatch(lore::contains)) return true;
         }
         else if (wrapper.checkLoreContains()) {
-          if (!loreToCheck.contains(lore)) return false;
+          if (lore.isEmpty()) return true;
+          if (loreToCheck.stream().noneMatch(lore::contains)) return true;
         }
+
         else if (wrapper.checkLoreIgnoreCase()) {
-          if (!loreToCheck.equalsIgnoreCase(lore)) return false;
+          if (loreToCheck.stream().noneMatch(lore::contains)) return true;
         }
         else if (!loreToCheck.equals(lore)) {
-          return false;
+          return true;
         }
       }
 
       if (wrapper.getLore() != null) {
-        List<String> loreX = metaToCheck.getLore();
-        if (loreX == null) return false;
+        loreX = meta != null && meta.hasLore() ? meta.lore() : null;
+        if (loreX == null) return true;
 
-        String lore = StringUtils.color(holder.setPlaceholdersAndArguments(wrapper.getLore()));
-        String loreToCheck = loreX.stream().map(holder::setPlaceholdersAndArguments).map(StringUtils::color).collect(Collectors.joining("&&"));
+        List<Component> lore = wrapper.getLoreList().stream()
+                .map(loreLine -> transformLore(MiniMessage.miniMessage().serialize(loreLine).toLowerCase(), holder))
+                .collect(Collectors.toList());
+
+        List<Component> loreToCheck = loreX.stream()
+                .map(loreLine -> transformLore(MiniMessage.miniMessage().serialize(loreLine).toLowerCase(), holder))
+                .collect(Collectors.toList());
 
         if (wrapper.checkLoreContains() && wrapper.checkLoreIgnoreCase()) {
-          return org.apache.commons.lang3.StringUtils.containsIgnoreCase(loreToCheck, lore);
+          return loreToCheck.stream().noneMatch(lore::contains);
         }
         else if (wrapper.checkLoreContains()) {
-          return loreToCheck.contains(lore);
+          return loreToCheck.stream().noneMatch(lore::contains);
         }
         else if (wrapper.checkLoreIgnoreCase()) {
-          return loreToCheck.equalsIgnoreCase(lore);
-        }
-        else return loreToCheck.equals(lore);
+          return loreToCheck.stream().noneMatch(lore::contains);
+        } else return !loreToCheck.equals(lore);
       }
     }
-    return true;
+    return false;
   }
+
+  private Component transformLore(String loreString, MenuHolder holder) {
+    String processedString = holder.setPlaceholdersAndArguments(loreString);
+    return StringUtils.color(processedString);
+  }
+
 }

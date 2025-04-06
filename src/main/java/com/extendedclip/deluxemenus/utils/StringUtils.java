@@ -1,39 +1,38 @@
 package com.extendedclip.deluxemenus.utils;
 
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import me.clip.placeholderapi.PlaceholderAPI;
-import net.md_5.bungee.api.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Map;
+
 public class StringUtils {
 
-    private final static Pattern HEX_PATTERN = Pattern
-            .compile("&(#[a-f0-9]{6})", Pattern.CASE_INSENSITIVE);
+    private static final GsonComponentSerializer gson = GsonComponentSerializer.gson();
+    private static final LegacyComponentSerializer serializer = LegacyComponentSerializer.builder().hexColors().build();
 
     /**
-     * Translates the ampersand color codes like '&7' to their section symbol counterparts like '§7'.
-     * <br>
-     * It also translates hex colors like '&#aaFF00' to their section symbol counterparts like '§x§a§a§F§F§0§0'.
+     * Transforms a string into a {@link Component} with support for legacy color codes and hex color codes (1.16.1+).
      *
-     * @param input The string in which to translate the color codes.
-     * @return The string with the translated colors.
+     * @param input The input string containing legacy or hex color codes.
+     * @return A {@link Component} representing the input string with color codes parsed.
      */
     @NotNull
-    public static String color(@NotNull String input) {
-        // Hex Support for 1.16.1+
-        Matcher m = HEX_PATTERN.matcher(input);
-        if (VersionHelper.IS_HEX_VERSION) {
-            while (m.find()) {
-                input = input.replace(m.group(), ChatColor.of(m.group(1)).toString());
-            }
-        }
+    public static Component color(@NotNull String input) {
+        return serializer.deserialize(input);
+    }
 
-        return ChatColor.translateAlternateColorCodes('&', input);
+    public static void sendJson(CommandSender sender, String json) {
+        sender.sendMessage(fromJson(json));
+    }
+
+    public static Component fromJson(String json) {
+        return gson.deserialize(json);
     }
 
     @NotNull

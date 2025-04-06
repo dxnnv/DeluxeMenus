@@ -6,37 +6,18 @@ import com.extendedclip.deluxemenus.action.ClickAction;
 import com.extendedclip.deluxemenus.action.ClickActionTask;
 import com.extendedclip.deluxemenus.action.ClickHandler;
 import com.extendedclip.deluxemenus.hooks.ItemHook;
-import com.extendedclip.deluxemenus.menu.options.LoreAppendMode;
 import com.extendedclip.deluxemenus.menu.Menu;
-import com.extendedclip.deluxemenus.menu.MenuHolder;
 import com.extendedclip.deluxemenus.menu.MenuItem;
+import com.extendedclip.deluxemenus.menu.options.LoreAppendMode;
 import com.extendedclip.deluxemenus.menu.options.MenuItemOptions;
 import com.extendedclip.deluxemenus.menu.options.MenuOptions;
-import com.extendedclip.deluxemenus.requirement.HasExpRequirement;
-import com.extendedclip.deluxemenus.requirement.HasItemRequirement;
-import com.extendedclip.deluxemenus.requirement.HasMetaRequirement;
-import com.extendedclip.deluxemenus.requirement.HasMoneyRequirement;
-import com.extendedclip.deluxemenus.requirement.HasPermissionRequirement;
-import com.extendedclip.deluxemenus.requirement.HasPermissionsRequirement;
-import com.extendedclip.deluxemenus.requirement.InputResultRequirement;
-import com.extendedclip.deluxemenus.requirement.IsNearRequirement;
-import com.extendedclip.deluxemenus.requirement.IsObjectRequirement;
-import com.extendedclip.deluxemenus.requirement.JavascriptRequirement;
-import com.extendedclip.deluxemenus.requirement.RegexMatchesRequirement;
-import com.extendedclip.deluxemenus.requirement.Requirement;
-import com.extendedclip.deluxemenus.requirement.RequirementList;
-import com.extendedclip.deluxemenus.requirement.RequirementType;
-import com.extendedclip.deluxemenus.requirement.StringLengthRequirement;
+import com.extendedclip.deluxemenus.requirement.*;
 import com.extendedclip.deluxemenus.requirement.wrappers.ItemWrapper;
-import com.extendedclip.deluxemenus.utils.DebugLevel;
-import com.extendedclip.deluxemenus.utils.ItemUtils;
-import com.extendedclip.deluxemenus.utils.LocationUtils;
-import com.extendedclip.deluxemenus.utils.VersionHelper;
+import com.extendedclip.deluxemenus.utils.*;
 import com.google.common.base.Enums;
 import com.google.common.primitives.Ints;
-import org.bukkit.DyeColor;
-import org.bukkit.Location;
-import org.bukkit.Material;
+import io.papermc.paper.registry.RegistryKey;
+import org.bukkit.*;
 import org.bukkit.block.banner.PatternType;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
@@ -48,32 +29,19 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static com.extendedclip.deluxemenus.utils.Constants.PLACEHOLDER_PREFIX;
-import static com.extendedclip.deluxemenus.utils.Constants.PLAYER_ITEMS;
-import static com.extendedclip.deluxemenus.utils.Constants.WATER_BOTTLE;
+import static com.extendedclip.deluxemenus.utils.Constants.*;
+import static io.papermc.paper.registry.RegistryAccess.registryAccess;
 
 public class DeluxeMenusConfig {
 
@@ -155,12 +123,13 @@ public class DeluxeMenusConfig {
 
         FileConfiguration c = plugin.getConfig();
 
-        c.options().header(
-                "DeluxeMenus " + plugin.getDescription().getVersion() + " main configuration file" +
-                "\n" +
-                "\nA full wiki on how to use this plugin can be found at:" +
-                "\nhttps://wiki.helpch.at/helpchat-plugins/deluxemenus" +
-                "\n"
+        c.options().setHeader(
+                List.of(
+                        "DeluxeMenus " + plugin.getDescription().getVersion() + " main configuration file",
+                        "\n",
+                        "A full wiki on how to use this plugin can be found at:",
+                        "https://wiki.helpch.at/helpchat-plugins/deluxemenus"
+                )
         );
         c.addDefault("debug", "LOW");
         c.addDefault("check_updates", true);
@@ -182,9 +151,11 @@ public class DeluxeMenusConfig {
         for (String name : exampleMenus) {
             File menuFile = new File(menuDirectory.getPath(), name + ".yml");
             try {
-                menuFile.createNewFile();
+                if (menuFile.createNewFile()) {
+                    throw new IOException("Failed to create example menu file: " + menuFile.getName());
+                }
             } catch (IOException e) {
-                plugin.printStacktrace("Failed to create example menus!", e);
+                plugin.printStacktrace(e.getMessage(), e);
                 continue;
             }
             saveResourceToFile(name + ".yml", menuFile);
@@ -197,11 +168,21 @@ public class DeluxeMenusConfig {
     private boolean saveResourceToFile(String resource, File file) {
         try {
             InputStream is = plugin.getResource(resource);
+            if (is == null) {
+                throw new NullPointerException("Failed to load resource: " + resource + " from DeluxeMenus jar!");
+            }
             byte[] buffer = new byte[is.available()];
-            is.read(buffer);
-            OutputStream os = new FileOutputStream(file);
-            os.write(buffer);
-            return true;
+            if (is.read(buffer) == -1) {
+                plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Unable to save resource " + resource + "!");
+                throw new NullPointerException("Failed to load resource: " + resource + " from DeluxeMenus jar!");
+            }
+
+            try (OutputStream os = new FileOutputStream(file)) {
+                os.write(buffer);
+                return true;
+            } catch (IOException e) {
+                plugin.printStacktrace(e.getMessage(), e);
+            }
         } catch (NullPointerException | IOException ex) {
             plugin.printStacktrace("Failed to update file: " + resource, ex);
             plugin.debug(DebugLevel.HIGHEST, Level.SEVERE, "Failed to save default settings for:" + file.getName() + " from resource:" + resource);
@@ -229,7 +210,7 @@ public class DeluxeMenusConfig {
         File configFile = new File(directory.getPath(), fileName);
         if (create) {
             try {
-                configFile.createNewFile();
+                if (configFile.createNewFile()) throw new IOException();
             } catch (IOException e) {
                 plugin.printStacktrace("Failed to create file: " + fileName, e);
                 return null;
@@ -273,11 +254,11 @@ public class DeluxeMenusConfig {
             return false;
         }
 
-        if (!c.isConfigurationSection("gui_menus")) {
+        if (!c.isConfigurationSection("gui_menus") || !c.getConfigurationSection("gui_menus").getKeys(false).isEmpty()) {
             return false;
         }
 
-        Set<String> keys = c.getConfigurationSection("gui_menus").getKeys(false);
+        Set<String> keys = Objects.requireNonNull(c.getConfigurationSection("gui_menus")).getKeys(false);
 
         if (keys.isEmpty()) {
             return false;
@@ -331,47 +312,52 @@ public class DeluxeMenusConfig {
         return Menu.getLoadedMenuSize();
     }
 
-    public boolean loadMenuFromFile(String menuName) {
+    public void loadMenuFromFile(String menuName) {
 
         String fileName = plugin.getConfig().getString("gui_menus." + menuName + ".file");
 
-        if (!fileName.endsWith(".yml")) {
+        if (fileName != null && !fileName.endsWith(".yml")) {
             plugin.debug(DebugLevel.HIGHEST, Level.SEVERE, "Filename specified for menu: " + menuName + " is not a .yml file!", "Make sure that the file name to load this menu from is specified as a .yml file!", "Skipping loading of menu: " + menuName);
-            return false;
+            return;
         }
 
-        File f = new File(menuDirectory.getPath(), fileName);
+        File f = fileName != null ? new File(menuDirectory.getPath(), fileName) : new File(menuDirectory.getPath(), menuName + ".yml");
 
         if (!f.exists()) {
             plugin.debug(DebugLevel.HIGHEST, Level.INFO, f.getName() + " does not exist!");
 
+            File folder = f.getParentFile();
             try {
-                File folder = f.getParentFile();
-                if (!folder.exists()) folder.mkdirs();
-
-                f.createNewFile();
-                if (!saveResourceToFile("default_menu.yml", f)) {
-                    plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Failed to create a default menu file for menu: " + menuName, "Skipping loading menu: " + menuName);
-                    return false;
+                if (!folder.exists() && !folder.mkdirs()) {
+                    plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Failed to create directory: " + folder.getName());
+                    throw new SecurityException("Failed to create folder: " + folder.getName());
                 }
-                plugin.debug(DebugLevel.HIGHEST, Level.INFO, f.getName() + " created! Add your menu options to this file and use /dm reload to load it!");
-            } catch (IOException e) {
-                plugin.debug(DebugLevel.HIGHEST, Level.SEVERE, "Could not create menu file: plugins" + separator + "DeluxeMenus" + separator + "gui_menus" + separator + fileName);
-                return false;
+                if (f.createNewFile()) {
+                    plugin.debug(DebugLevel.HIGHEST, Level.SEVERE, "Could not create menu file: plugins" + separator + "DeluxeMenus" + separator + "gui_menus" + separator + fileName);
+                }
+            } catch (IOException | SecurityException e) {
+                plugin.printStacktrace("Exception thrown during menu loading from file " + f.getName() + ": ", e);
+                return;
             }
+
+            if (!saveResourceToFile("default_menu.yml", f)) {
+                plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Failed to create a default menu file for menu: " + menuName, "Skipping loading menu: " + menuName);
+                return;
+            }
+            plugin.debug(DebugLevel.HIGHEST, Level.INFO, f.getName() + " created! Add your menu options to this file and use /dm reload to load it!");
         }
 
         FileConfiguration cfg = checkConfig(f);
 
         if (cfg == null) {
             plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Menu: " + menuName + " in file: " + fileName + " not loaded.");
-            return false;
+            return;
         }
 
         if (cfg.getKeys(false).isEmpty()) {
             plugin.debug(DebugLevel.HIGH, Level.INFO, "Menu config: " + f.getName() + " is empty! Creating default config example...");
             saveResourceToFile("default_menu.yml", f);
-            return false;
+            return;
         }
 
         final Path guiMenusPath = menuDirectory.toPath();
@@ -379,7 +365,7 @@ public class DeluxeMenusConfig {
         final Path relativePath = guiMenusPath.relativize(menuPath);
 
         loadMenu(cfg, menuName, false, relativePath.toString());
-        return Menu.getMenuByName(menuName).isPresent();
+        Menu.getMenuByName(menuName);
     }
 
     public void loadMenu(FileConfiguration c, String key, boolean mainConfig, final @NotNull String path) {
@@ -589,8 +575,8 @@ public class DeluxeMenusConfig {
             }
 
             final String material = c.getString(currentPath + "material");
-            final String lowercaseMaterial = material.toLowerCase(Locale.ROOT);
-            if (!isValidMaterial(lowercaseMaterial)) {
+            final String lowercaseMaterial = material != null ? material.toLowerCase(Locale.ROOT) : null;
+            if (lowercaseMaterial == null || !isValidMaterial(lowercaseMaterial)) {
                 plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Material for item: " + key + " in menu: " + name + " is not valid!", "Skipping item: " + key);
                 continue;
             }
@@ -614,9 +600,11 @@ public class DeluxeMenusConfig {
                     .rgb(c.getString(currentPath + "rgb", null))
                     .unbreakable(c.getBoolean(currentPath + "unbreakable", false))
                     .updatePlaceholders(c.getBoolean(currentPath + "update", false))
-                    .hideAttributes(c.getBoolean(currentPath + "hide_attributes", false))
-                    .hideUnbreakable(c.getBoolean(currentPath + "hide_unbreakable", false))
-                    .hideEnchants(c.getBoolean(currentPath + "hide_enchantments", false))
+                    .itemFlags(Map.of(
+                            ItemFlag.HIDE_ATTRIBUTES, (c.getBoolean(currentPath + "hide_attributes", false)),
+                            ItemFlag.HIDE_UNBREAKABLE, (c.getBoolean(currentPath + "hide_attributes", false)),
+                            ItemFlag.HIDE_ENCHANTS, (c.getBoolean(currentPath + "hide_enchantments", false))
+                    ).keySet())
                     .nbtString(c.getString(currentPath + "nbt_string", null))
                     .nbtByte(c.getString(currentPath + "nbt_byte", null))
                     .nbtShort(c.getString(currentPath + "nbt_short", null))
@@ -690,15 +678,17 @@ public class DeluxeMenusConfig {
 
                     try {
                         color = DyeColor.valueOf(metaParts[0].toUpperCase());
-                        type = PatternType.valueOf(metaParts[1].toUpperCase());
-                    } catch (IllegalArgumentException exception) {
+                        Registry<@NotNull PatternType> bannerPatterns = registryAccess().getRegistry(RegistryKey.BANNER_PATTERN);
+                        @NotNull NamespacedKey bannerPatternEntry = NamespacedKey.minecraft(metaParts[1].toLowerCase());
+                        type = bannerPatterns.get(bannerPatternEntry);
+                    } catch (IllegalArgumentException | NullPointerException exception) {
                         plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Banner Meta for item: " + key + ", meta entry: " + e + " is invalid! Skipping this entry!");
 
                         plugin.printStacktrace("Banner Meta for item: " + key + ", meta entry: " + e + " is invalid! Skipping this entry!", exception);
                         continue;
                     }
 
-                    bannerMeta.add(new org.bukkit.block.banner.Pattern(color, type));
+                    bannerMeta.add(new org.bukkit.block.banner.Pattern(color, Objects.requireNonNull(type)));
                 }
 
                 if (!bannerMeta.isEmpty()) {
@@ -723,11 +713,18 @@ public class DeluxeMenusConfig {
                             continue;
                         }
 
-                        PotionEffectType type = PotionEffectType.getByName(metaParts[0]);
-                        int duration = Integer.parseInt(metaParts[1]);
+                        Registry<@NotNull PotionEffectType> potionEffectTypes = registryAccess().getRegistry(RegistryKey.MOB_EFFECT);
+                        PotionEffectType type = null;
+                        int duration = 0;
+
+                        if (metaParts[1] != null) {
+                            type = potionEffectTypes.get(NamespacedKey.minecraft(metaParts[1].toLowerCase()));
+                            duration = Integer.parseInt(metaParts[1]);
+                        }
+
                         int amplifier = Integer.parseInt(metaParts[2]);
 
-                        if (type == null) {
+                        if (type == null || duration == 0) {
                             plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Potion Meta for item: " + key + ", meta entry: " + e + " is invalid! Skipping this entry!");
                             continue;
                         }
@@ -892,7 +889,7 @@ public class DeluxeMenusConfig {
                         wrapper.setLore(c.getString(rPath + ".lore"));
                     }
                     if (c.isList(rPath + ".lore")) {
-                        wrapper.setLoreList(c.getStringList(rPath + ".lore"));
+                        wrapper.setLoreList(c.getStringList(rPath + ".lore").stream().map(StringUtils::color).collect(Collectors.toList()));
                     }
 
                     wrapper.setStrict(c.getBoolean(rPath + ".strict", false));
@@ -1031,7 +1028,7 @@ public class DeluxeMenusConfig {
                 case REGEX_MATCHES:
                 case REGEX_DOES_NOT_MATCH:
                     if (c.contains(rPath + ".input") && c.contains(rPath + ".regex")) {
-                        Pattern p = Pattern.compile(c.getString(rPath + ".regex"));
+                        Pattern p = Pattern.compile(Objects.requireNonNull(c.getString(rPath + ".regex")));
                         invert = type == RequirementType.REGEX_DOES_NOT_MATCH;
                         req = new RegexMatchesRequirement(p, c.getString(rPath + ".input"), invert);
                     } else {
@@ -1042,7 +1039,7 @@ public class DeluxeMenusConfig {
                 case IS_NOT_NEAR:
                     if (c.contains(rPath + ".location") && c.contains(rPath + ".distance")) {
                         invert = type == RequirementType.IS_NOT_NEAR;
-                        Location loc = LocationUtils.deserializeLocation(c.getString(rPath + ".location"));
+                        Location loc = LocationUtils.deserializeLocation(Objects.requireNonNull(c.getString(rPath + ".location")));
                         if (loc == null) {
                             plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "requirement at path: " + rPath + " has an invalid location. Valid Format is: <world>,<x>,<y>,<z>");
                         }
@@ -1060,7 +1057,7 @@ public class DeluxeMenusConfig {
                     if (c.contains(rPath + ".key") && c.contains(rPath + ".meta_type") && c.contains(rPath + ".value")) {
                         String metaKey = c.getString(rPath + ".key");
                         invert = type == RequirementType.DOES_NOT_HAVE_META;
-                        req = new HasMetaRequirement(plugin, metaKey, c.getString(rPath + ".meta_type").toUpperCase(), c.getString(rPath + ".value"), invert);
+                        req = new HasMetaRequirement(plugin, metaKey, Objects.requireNonNull(c.getString(rPath + ".meta_type")).toUpperCase(), c.getString(rPath + ".value"), invert);
                     } else {
                         plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Has Meta requirement at path: " + rPath + " does not contain the key:, meta_type: and/or value: entries!");
                     }
@@ -1127,8 +1124,8 @@ public class DeluxeMenusConfig {
         } else {
             int required = 0;
             for (Requirement req : requirements) {
-                if (!req.isOptional()) {
-                    required = required++;
+                if (req.isRequired()) {
+                    required++;
                 }
             }
             list.setMinimumRequirements(required);
@@ -1185,34 +1182,33 @@ public class DeluxeMenusConfig {
             actions.add(action);
         }
 
+        return getClickHandler(actions);
+    }
+
+    private @Nullable ClickHandler getClickHandler(List<ClickAction> actions) {
         ClickHandler handler = null;
 
         if (!actions.isEmpty()) {
 
-            handler = new ClickHandler() {
+            handler = holder -> {
 
-                @Override
-                public void onClick(@NotNull final MenuHolder holder) {
+                for (ClickAction action : actions) {
 
-                    for (ClickAction action : actions) {
-
-                        if (!action.checkChance(holder)) {
-                            continue;
-                        }
-
-                        final ClickActionTask actionTask = new ClickActionTask(plugin, holder.getViewer().getUniqueId(), action.getType(), action.getExecutable(), holder.getTypedArgs(), holder.parsePlaceholdersInArguments(), holder.parsePlaceholdersAfterArguments());
-
-                        if (action.hasDelay()) {
-                            actionTask.runTaskLater(plugin, action.getDelay(holder));
-                            continue;
-                        }
-
-                        actionTask.runTask(plugin);
+                    if (!action.checkChance(holder)) {
+                        continue;
                     }
+
+                    final ClickActionTask actionTask = new ClickActionTask(plugin, holder.getViewer().getUniqueId(), action.getType(), action.getExecutable(), holder.getTypedArgs(), holder.parsePlaceholdersInArguments(), holder.parsePlaceholdersAfterArguments());
+
+                    if (action.hasDelay()) {
+                        actionTask.runTaskLater(plugin, action.getDelay(holder));
+                        continue;
+                    }
+
+                    actionTask.runTask(plugin);
                 }
             };
         }
-
         return handler;
     }
 
@@ -1286,7 +1282,9 @@ public class DeluxeMenusConfig {
                 continue;
             }
 
-            final Enchantment enchantment = Enchantment.getByName(parts[0].strip().toUpperCase());
+            Registry<@NotNull Enchantment> enchantments = registryAccess().getRegistry(RegistryKey.ENCHANTMENT);
+
+            final Enchantment enchantment = enchantments.get(NamespacedKey.minecraft(parts[0].strip().toLowerCase()));
             if (enchantment == null) {
                 plugin.debug(
                         DebugLevel.HIGHEST,

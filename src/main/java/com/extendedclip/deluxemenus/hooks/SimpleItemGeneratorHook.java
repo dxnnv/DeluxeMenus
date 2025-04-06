@@ -34,9 +34,7 @@ public class SimpleItemGeneratorHook implements ItemHook, SimpleCache {
             return errorItem("Item arguments are absent.");
         }
 
-        final ItemStack item = cache.computeIfAbsent(arguments[0], id -> {
-            return SimpleItemGenerator.get().bakeItem(id, holder).orElse(null);
-        });
+        final ItemStack item = cache.computeIfAbsent(arguments[0], id -> SimpleItemGenerator.get().bakeItem(id, holder).orElse(null));
         return item == null? errorItem("Item %s wasn't found by SimpleItemGenerator.", arguments[0]) : item.clone();
     }
 
