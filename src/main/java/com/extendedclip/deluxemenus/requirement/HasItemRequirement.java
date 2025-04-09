@@ -141,17 +141,12 @@ public class HasItemRequirement extends Requirement {
         List<Component> loreToCheck = loreX;
 
         if (wrapper.checkLoreContains() && wrapper.checkLoreIgnoreCase()) {
-          if (loreToCheck.stream().noneMatch(lore::contains)) return true;
-        }
-        else if (wrapper.checkLoreContains()) {
-          if (lore.isEmpty()) return true;
-          if (loreToCheck.stream().noneMatch(lore::contains)) return true;
-        }
-
-        else if (wrapper.checkLoreIgnoreCase()) {
-          if (loreToCheck.stream().noneMatch(lore::contains)) return true;
-        }
-        else if (!loreToCheck.equals(lore)) {
+          if (loreToCheck.stream().noneMatch(lore::contains))
+            return true;
+        } else if (wrapper.checkLoreContains() || wrapper.checkLoreIgnoreCase()) {
+          if (lore.isEmpty() || loreToCheck.stream().noneMatch(lore::contains))
+            return true;
+        } else if (!loreToCheck.equals(lore)) {
           return true;
         }
       }
@@ -161,22 +156,23 @@ public class HasItemRequirement extends Requirement {
         if (loreX == null) return true;
 
         List<Component> lore = wrapper.getLoreList().stream()
-                .map(loreLine -> transformLore(MiniMessage.miniMessage().serialize(loreLine).toLowerCase(), holder))
+                .map(loreLine -> transformLore(
+                        MiniMessage.miniMessage().serialize(loreLine).toLowerCase(), holder))
                 .collect(Collectors.toList());
 
         List<Component> loreToCheck = loreX.stream()
-                .map(loreLine -> transformLore(MiniMessage.miniMessage().serialize(loreLine).toLowerCase(), holder))
+                .map(loreLine -> transformLore(
+                        MiniMessage.miniMessage().serialize(loreLine).toLowerCase(), holder))
                 .collect(Collectors.toList());
 
         if (wrapper.checkLoreContains() && wrapper.checkLoreIgnoreCase()) {
           return loreToCheck.stream().noneMatch(lore::contains);
-        }
-        else if (wrapper.checkLoreContains()) {
+        } else if (wrapper.checkLoreContains()) {
           return loreToCheck.stream().noneMatch(lore::contains);
-        }
-        else if (wrapper.checkLoreIgnoreCase()) {
+        } else if (wrapper.checkLoreIgnoreCase()) {
           return loreToCheck.stream().noneMatch(lore::contains);
-        } else return !loreToCheck.equals(lore);
+        } else
+          return !loreToCheck.equals(lore);
       }
     }
     return false;
