@@ -57,28 +57,8 @@ public class SkullUtils {
             return head;
         }
 
-        if (VersionHelper.HAS_PLAYER_PROFILES) {
-            final PlayerProfile profile = getPlayerProfile(plugin, base64Url);
-            if (profile.getId() == null) return head;
-
-            final OfflinePlayer owner = Bukkit.getOfflinePlayer(profile.getId());
-            headMeta.setOwningPlayer(owner);
-            head.setItemMeta(headMeta);
-            return head;
-        }
-
-        final GameProfile profile = getGameProfile(base64Url);
-        final Field profileField;
-        try {
-            profileField = headMeta.getClass().getDeclaredField("profile");
-            profileField.setAccessible(true);
-            profileField.set(headMeta, profile);
-        } catch (final NoSuchFieldException | IllegalArgumentException | IllegalAccessException exception) {
-            plugin.printStacktrace(
-                    "Failed to get head item from base64 texture url",
-                    exception
-            );
-        }
+        final PlayerProfile profile = getPlayerProfile(plugin, base64Url);
+        headMeta.setPlayerProfile(profile);
         head.setItemMeta(headMeta);
         return head;
     }
@@ -176,7 +156,7 @@ public class SkullUtils {
      */
     @NotNull
     private static PlayerProfile getPlayerProfile(@NotNull final DeluxeMenus plugin, @NotNull final String base64Url) {
-        final PlayerProfile profile = plugin.getServer().createProfile(UUID.randomUUID());
+        final PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
 
         final String decodedBase64 = decodeSkinUrl(base64Url);
         if (decodedBase64 == null) {
