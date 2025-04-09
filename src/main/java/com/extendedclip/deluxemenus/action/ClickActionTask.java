@@ -4,7 +4,6 @@ import com.extendedclip.deluxemenus.DeluxeMenus;
 import com.extendedclip.deluxemenus.menu.Menu;
 import com.extendedclip.deluxemenus.menu.MenuHolder;
 import com.extendedclip.deluxemenus.utils.*;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -102,17 +101,11 @@ public class ClickActionTask extends BukkitRunnable {
                 break;
 
             case MINI_MESSAGE:
-                player.sendMessage(MiniMessage.miniMessage().deserialize(executable));
-                break;
-
-            case MINI_BROADCAST:
-                plugin.getServer().broadcast(MiniMessage.miniMessage().deserialize(executable));
-                break;
-
             case MESSAGE:
                 player.sendMessage(StringUtils.color(executable));
                 break;
 
+            case MINI_BROADCAST:
             case BROADCAST:
                 plugin.getServer().broadcast(StringUtils.color(executable));
                 break;

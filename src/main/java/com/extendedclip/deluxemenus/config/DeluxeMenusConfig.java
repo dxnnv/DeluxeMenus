@@ -271,14 +271,12 @@ public class DeluxeMenusConfig {
                     config.set(titlePath, newConfigTitle.set(0, StringUtils.serializeMiniMessage(newConfigTitle.get(0))));
                 }
             }
-
             // ---------------------
-
             // ------- Items -------
-
             String itemsPath = "items";
             String displayNamePath = "display_name";
             String lorePath = "lore";
+            String commandsPath = "click_commands";
 
             if (config.contains(itemsPath) && config.isConfigurationSection(itemsPath)) {
                 Set<String> itemKeys = Objects.requireNonNull(config.getConfigurationSection(itemsPath)).getKeys(false);
@@ -287,11 +285,13 @@ public class DeluxeMenusConfig {
                     for (String key : itemKeys) {
                         String currentPath = itemsPath + "." + key + ".";
 
+                        // ---- Display Name ----
                         if (config.contains(currentPath + displayNamePath)) {
                             String displayName = config.getString(currentPath + displayNamePath);
                             config.set(currentPath + displayNamePath, StringUtils.serializeMiniMessage(displayName));
                         }
-
+                        // --------------------
+                        // ------- Lore -------
                         if (config.contains(currentPath + lorePath) && config.isList(currentPath + lorePath)) {
                             List<String> loreList = config.getStringList(currentPath + lorePath);
                             List<String> newLoreList = new ArrayList<>();
@@ -308,6 +308,27 @@ public class DeluxeMenusConfig {
                                 config.set(currentPath + lorePath, StringUtils.serializeMiniMessage(loreValue));
                             }
                         }
+                        // --------------------
+                        // -- Click Commands --
+                        final CommandSender cmdSender = sender;
+                        List<String> CLICK_COMMAND_PATHS = List.of("click_commands", "left_click_commands", "right_click_commands", "shift_left_click_commands", "shift_right_click_commands", "middle_click_commands");
+
+                        CLICK_COMMAND_PATHS.forEach(path -> {
+                            if (!config.getStringList(currentPath + path).isEmpty()) {
+                                cmdSender.sendMessage("path: " + currentPath + path);
+                                List<String> updatedCommands = new ArrayList<>();
+                                config.getStringList(currentPath + path).forEach(command -> {
+                                    if (command.contains("[message]") || command.contains("[broadcast]")) {
+                                        cmdSender.sendMessage("cmd:" + currentPath + command);
+                                        updatedCommands.add(StringUtils.serializeMiniMessage(command));
+                                    } else {
+                                        updatedCommands.add(command);
+                                    }
+                                });
+
+                                config.set(currentPath + path, updatedCommands);
+                            }
+                        });
                     }
                 }
             }
