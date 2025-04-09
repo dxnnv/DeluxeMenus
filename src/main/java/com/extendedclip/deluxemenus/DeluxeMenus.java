@@ -27,6 +27,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
@@ -51,6 +52,7 @@ public class DeluxeMenus extends JavaPlugin {
 
     private final GeneralConfig generalConfig = new GeneralConfig(this);
     private DeluxeMenusConfig menuConfig;
+    private static Plugin instance;
 
     @Override
     public void onLoad() {
@@ -62,38 +64,8 @@ public class DeluxeMenus extends JavaPlugin {
         this.debug(DebugLevel.HIGHEST, Level.WARNING, "Could not setup a NMS hook for your server version!");
     }
 
-    @Override
-    public void onEnable() {
-        this.generalConfig.load();
-
-        if (!hookIntoPlaceholderAPI()) {
-            Bukkit.getPluginManager().disablePlugin(this);
-            return;
-        }
-
-        this.persistentMetaHandler = new PersistentMetaHandler(this);
-        this.menuItemMarker = new MenuItemMarker(this);
-        new DupeFixer(this, this.menuItemMarker).register();
-
-        hookIntoVault();
-        setUpItemHooks();
-
-        this.menuConfig = new DeluxeMenusConfig(this);
-        if (this.menuConfig.loadDefConfig()) {
-            debug(DebugLevel.HIGHEST, Level.INFO, menuConfig.loadGUIMenus() + " GUI menus loaded!");
-        } else {
-            debug(DebugLevel.HIGHEST, Level.WARNING, "Failed to load from config.yml. Use /dm reload after fixing your errors.");
-        }
-
-        new PlayerListener(this).register();
-        if (!new DeluxeMenusCommand(this).register()) {
-            debug(DebugLevel.HIGHEST, Level.SEVERE, "Could not register the DeluxeMenus command!");
-        }
-        new Expansion(this).register();
-
-        setUpBungeeCordMessaging();
-        setUpUpdateChecker();
-        setUpMetrics();
+    public static Plugin getInstance() {
+        return instance;
     }
 
     @Override
@@ -292,4 +264,40 @@ public class DeluxeMenus extends JavaPlugin {
     private void setUpMetrics() {
         final Metrics metrics = new Metrics(this, 445);
     }
+
+    @Override
+    public void onEnable() {
+        instance = this;
+        this.generalConfig.load();
+
+        if (!hookIntoPlaceholderAPI()) {
+            Bukkit.getPluginManager().disablePlugin(this);
+            return;
+        }
+
+        this.persistentMetaHandler = new PersistentMetaHandler(this);
+        this.menuItemMarker = new MenuItemMarker(this);
+        new DupeFixer(this, this.menuItemMarker).register();
+
+        hookIntoVault();
+        setUpItemHooks();
+
+        this.menuConfig = new DeluxeMenusConfig(this);
+        if (this.menuConfig.loadDefConfig()) {
+            debug(DebugLevel.HIGHEST, Level.INFO, menuConfig.loadGUIMenus() + " GUI menus loaded!");
+        } else {
+            debug(DebugLevel.HIGHEST, Level.WARNING, "Failed to load from config.yml. Use /dm reload after fixing your errors.");
+        }
+
+        new PlayerListener(this).register();
+        if (!new DeluxeMenusCommand(this).register()) {
+            debug(DebugLevel.HIGHEST, Level.SEVERE, "Could not register the DeluxeMenus command!");
+        }
+        new Expansion(this).register();
+
+        setUpBungeeCordMessaging();
+        setUpUpdateChecker();
+        setUpMetrics();
+    }
+
 }
