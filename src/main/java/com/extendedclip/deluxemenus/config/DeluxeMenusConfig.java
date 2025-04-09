@@ -19,6 +19,7 @@ import com.google.common.primitives.Ints;
 import io.papermc.paper.registry.RegistryKey;
 import org.bukkit.*;
 import org.bukkit.block.banner.PatternType;
+import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -26,6 +27,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.ItemFlag;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.NotNull;
@@ -243,6 +245,82 @@ public class DeluxeMenusConfig {
         }
     }
 
+    public static void convertMenu(@Nullable CommandSender sender, final String menuName) {
+        Plugin instance = DeluxeMenus.getInstance();
+        sender = Objects.requireNonNullElseGet(sender, Bukkit::getConsoleSender);
+
+        File menuDirectory = new File(instance.getDataFolder() + File.separator + "gui_menus");
+        File originalFile = new File(menuDirectory.getPath() + File.separator + Objects.requireNonNull(instance.getConfig().getString("gui_menus." + menuName + ".file")));
+
+        String newFileName = originalFile.getName().substring(0, originalFile.getName().lastIndexOf(".yml")) + "-new.yml";
+        File newFile = new File(originalFile.getParent(), newFileName);
+
+        try {
+            sender.sendMessage(StringUtils.color("<green>Started conversion on " + originalFile.getName() + " to " + newFile.getName() + "..."));
+            FileConfiguration config = YamlConfiguration.loadConfiguration(originalFile);
+
+            // ------- Title -------
+            String titlePath = "menu_title";
+
+            if (config.isString("menu_title")) {
+                String newConfigTitle = StringUtils.serializeMiniMessage(config.getString(titlePath));
+                if (!newConfigTitle.isEmpty()) config.set(titlePath, newConfigTitle);
+            } else if (config.isList("menu_title")) {
+                List<String> newConfigTitle = config.getStringList(titlePath);
+                if (!newConfigTitle.isEmpty()) {
+                    config.set(titlePath, newConfigTitle.set(0, StringUtils.serializeMiniMessage(newConfigTitle.get(0))));
+                }
+            }
+
+            // ---------------------
+
+            // ------- Items -------
+
+            String itemsPath = "items";
+            String displayNamePath = "display_name";
+            String lorePath = "lore";
+
+            if (config.contains(itemsPath) && config.isConfigurationSection(itemsPath)) {
+                Set<String> itemKeys = Objects.requireNonNull(config.getConfigurationSection(itemsPath)).getKeys(false);
+
+                if (!itemKeys.isEmpty()) {
+                    for (String key : itemKeys) {
+                        String currentPath = itemsPath + "." + key + ".";
+
+                        if (config.contains(currentPath + displayNamePath)) {
+                            String displayName = config.getString(currentPath + displayNamePath);
+                            config.set(currentPath + displayNamePath, StringUtils.serializeMiniMessage(displayName));
+                        }
+
+                        if (config.contains(currentPath + lorePath) && config.isList(currentPath + lorePath)) {
+                            List<String> loreList = config.getStringList(currentPath + lorePath);
+                            List<String> newLoreList = new ArrayList<>();
+
+                            if (!loreList.isEmpty()) {
+                                for (String line : loreList) {
+                                    newLoreList.add(StringUtils.serializeMiniMessage(line));
+                                }
+                                config.set(currentPath + lorePath, newLoreList);
+                            }
+                        } else if (config.contains(currentPath + lorePath) && config.isString(currentPath + lorePath)) {
+                            String loreValue = config.getString(currentPath + lorePath);
+                            if (loreValue != null && !loreValue.isEmpty()) {
+                                config.set(currentPath + lorePath, StringUtils.serializeMiniMessage(loreValue));
+                            }
+                        }
+                    }
+                }
+            }
+
+            config.save(newFile);
+            sender.sendMessage(StringUtils.color("<green>Finished converting " + originalFile.getName() + " to " + newFile.getName() + "!"));
+
+        } catch (IllegalArgumentException | IOException e) {
+            sender.sendMessage(StringUtils.color("<red>Could not save menu file: " + newFile.getName()));
+            instance.getLogger().log(Level.SEVERE, "Could not save menu file: " + newFile.getName(), e);
+        }
+    }
+
     public boolean loadGUIMenu(String menu) {
         if (checkConfig(null, "config.yml", false) == null) {
             return false;
@@ -254,7 +332,7 @@ public class DeluxeMenusConfig {
             return false;
         }
 
-        if (!c.isConfigurationSection("gui_menus") || !c.getConfigurationSection("gui_menus").getKeys(false).isEmpty()) {
+        if (!c.isConfigurationSection("gui_menus") || !Objects.requireNonNull(c.getConfigurationSection("gui_menus")).getKeys(false).isEmpty()) {
             return false;
         }
 
@@ -275,41 +353,6 @@ public class DeluxeMenusConfig {
         }
 
         return true;
-    }
-
-    public int loadGUIMenus() {
-
-        if (checkConfig(null, "config.yml", false) == null) {
-            return 0;
-        }
-
-        FileConfiguration c = plugin.getConfig();
-
-        if (!c.contains("gui_menus")) {
-            return 0;
-        }
-
-        if (!c.isConfigurationSection("gui_menus")) {
-            return 0;
-        }
-
-        Set<String> keys = c.getConfigurationSection("gui_menus").getKeys(false);
-
-        if (keys.isEmpty()) {
-            return 0;
-        }
-
-        for (String key : keys) {
-
-            if (c.contains("gui_menus." + key + ".file")) {
-
-                loadMenuFromFile(key);
-
-            } else {
-                loadMenu(c, key, true, "config");
-            }
-        }
-        return Menu.getLoadedMenuSize();
     }
 
     public void loadMenuFromFile(String menuName) {
@@ -368,6 +411,41 @@ public class DeluxeMenusConfig {
         Menu.getMenuByName(menuName);
     }
 
+    public int loadGUIMenus() {
+
+        if (checkConfig(null, "config.yml", false) == null) {
+            return 0;
+        }
+
+        FileConfiguration c = plugin.getConfig();
+
+        if (!c.contains("gui_menus")) {
+            return 0;
+        }
+
+        if (!c.isConfigurationSection("gui_menus")) {
+            return 0;
+        }
+
+        Set<String> keys = Objects.requireNonNull(c.getConfigurationSection("gui_menus")).getKeys(false);
+
+        if (keys.isEmpty()) {
+            return 0;
+        }
+
+        for (String key : keys) {
+
+            if (c.contains("gui_menus." + key + ".file")) {
+
+                loadMenuFromFile(key);
+
+            } else {
+                loadMenu(c, key, true, "config");
+            }
+        }
+        return Menu.getLoadedMenuSize();
+    }
+
     public void loadMenu(FileConfiguration c, String key, boolean mainConfig, final @NotNull String path) {
         if (mainConfig) {
             plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Menu: " + key + " does not have a file specified in config.yml! Creating menus in the " + "config.yml file is deprecated and will be removed in a future version! Please migrate your " + "menus to individual files in the gui_menus directory! For more information see: " + "https://wiki.helpch.at/clips-plugins/deluxemenus/external-menus");
@@ -403,7 +481,7 @@ public class DeluxeMenusConfig {
 
         if (c.contains(pre + "inventory_type")) {
             try {
-                final InventoryType inventoryType = InventoryType.valueOf(c.getString(pre + "inventory_type").toUpperCase());
+                final InventoryType inventoryType = InventoryType.valueOf(Objects.requireNonNull(c.getString(pre + "inventory_type")).toUpperCase());
                 type = !VALID_INVENTORY_TYPES.contains(inventoryType) ? InventoryType.CHEST : inventoryType;
             } catch (Exception ex) {
                 plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Inventory type for menu: " + key + " is invalid!", "Valid Inventory types: " + Arrays.toString(VALID_INVENTORY_TYPES.toArray()), "Defaulting to CHEST inventory type.");
@@ -415,7 +493,7 @@ public class DeluxeMenusConfig {
         final List<String> openCommands = new ArrayList<>();
 
         if (c.contains(pre + "open_command")) {
-            if (c.isString(pre + "open_command") && !c.getString(pre + "open_command").isEmpty()) {
+            if (c.isString(pre + "open_command") && !Objects.requireNonNull(c.getString(pre + "open_command")).isEmpty()) {
 
                 String cmd = c.getString(pre + "open_command");
 
@@ -456,7 +534,7 @@ public class DeluxeMenusConfig {
         if (c.contains(pre + "args")) {
             // New requirements parsing
             if (c.isConfigurationSection(pre + "args")) {
-                Set<String> mapList = c.getConfigurationSection(pre + "args").getKeys(false);
+                Set<String> mapList = Objects.requireNonNull(c.getConfigurationSection(pre + "args")).getKeys(false);
                 debug("found args");
                 for (String arg : mapList) {
                     debug("arg: " + arg);
@@ -557,7 +635,7 @@ public class DeluxeMenusConfig {
             return null;
         }
 
-        Set<String> itemKeys = c.getConfigurationSection(itemsPath).getKeys(false);
+        Set<String> itemKeys = Objects.requireNonNull(c.getConfigurationSection(itemsPath)).getKeys(false);
 
         if (itemKeys.isEmpty()) {
             return null;
@@ -822,6 +900,224 @@ public class DeluxeMenusConfig {
         return menuItems;
     }
 
+    private ClickHandler getClickHandler(FileConfiguration c, String configPath) {
+
+        List<String> commands = c.getStringList(configPath);
+
+        if (commands.isEmpty()) {
+            return null;
+        }
+
+        final List<ClickAction> actions = new ArrayList<>();
+
+        for (String command : commands) {
+
+            if (command == null || command.isEmpty()) {
+                continue;
+            }
+
+            ActionType type = ActionType.getByStart(command);
+
+            if (type == null) {
+                continue;
+            } else {
+                command = command.replaceFirst(Pattern.quote(type.getIdentifier()), "");
+            }
+
+            if (command.startsWith(" ")) {
+                command = command.trim();
+            }
+
+            ClickAction action = new ClickAction(type, command);
+
+            Matcher d = DELAY_MATCHER.matcher(command);
+
+            if (d.find()) {
+                action.setDelay(d.group(1));
+                command = command.replaceFirst(Pattern.quote(d.group()), "");
+            }
+
+            Matcher ch = CHANCE_MATCHER.matcher(command);
+
+            if (ch.find()) {
+                action.setChance(ch.group(1));
+                command = command.replaceFirst(Pattern.quote(ch.group()), "");
+            }
+
+            action.setExecutable(command);
+            actions.add(action);
+        }
+
+        return getClickHandler(actions);
+    }
+
+    private @Nullable ClickHandler getClickHandler(List<ClickAction> actions) {
+        ClickHandler handler = null;
+
+        if (!actions.isEmpty()) {
+
+            handler = holder -> {
+
+                for (ClickAction action : actions) {
+
+                    if (!action.checkChance(holder)) {
+                        continue;
+                    }
+
+                    final ClickActionTask actionTask = new ClickActionTask(plugin, holder.getViewer().getUniqueId(), action.getType(), action.getExecutable(), holder.getTypedArgs(), holder.parsePlaceholdersInArguments(), holder.parsePlaceholdersAfterArguments());
+
+                    if (action.hasDelay()) {
+                        actionTask.runTaskLater(plugin, action.getDelay(holder));
+                        continue;
+                    }
+
+                    actionTask.runTask(plugin);
+                }
+            };
+        }
+        return handler;
+    }
+
+    private void checkForDeprecatedItemOptions(ConfigurationSection config, String menuName) {
+        final BiConsumer<String, ItemFlag> oldItemFlagOptionCheck = (option, itemFlag) -> {
+            if (!config.contains(option)) {
+                return;
+            }
+
+            plugin.debug(DebugLevel.HIGHEST, Level.WARNING, String.format("Option '%s' of item '%s' in menu '%s' is deprecated and will be removed in the future. Replace it with item_flags: [%s].", option, config.getName(), menuName, itemFlag));
+        };
+
+        oldItemFlagOptionCheck.accept("hide_attributes", ItemFlag.HIDE_ATTRIBUTES);
+        oldItemFlagOptionCheck.accept("hide_enchantments", ItemFlag.HIDE_ENCHANTS);
+        oldItemFlagOptionCheck.accept("hide_unbreakable", ItemFlag.HIDE_UNBREAKABLE);
+    }
+
+    public void debug(String... messages) {
+        plugin.debug(DebugLevel.LOWEST, Level.INFO, messages);
+    }
+
+    public @NotNull DebugLevel debugLevel() {
+        String stringLevel = plugin.getConfig().getString("debug", "HIGHEST");
+
+        if (stringLevel.equalsIgnoreCase("true")) {
+            stringLevel = "LOWEST";
+            plugin.getConfig().set("debug", "LOWEST");
+        } else if (stringLevel.equalsIgnoreCase("false")) {
+            stringLevel = "HIGHEST";
+            plugin.getConfig().set("debug", "HIGHEST");
+        }
+
+        final DebugLevel debugLevel = DebugLevel.getByName(stringLevel);
+        return debugLevel == null ? DebugLevel.LOW : debugLevel;
+    }
+
+    public File getMenuDirector() {
+        return menuDirectory;
+    }
+    public void addEnchantmentsOptionToBuilder(final FileConfiguration c, final String currentPath,
+                                               final String itemKey, final String menuName,
+                                               final MenuItemOptions.MenuItemOptionsBuilder builder) {
+        if (!c.contains(currentPath + "enchantments")) {
+            return;
+        }
+
+        final List<String> configEnchantments = c.getStringList(currentPath + "enchantments");
+        final Map<Enchantment, Integer> parsedEnchantments = new HashMap<>();
+
+        for (final String configEnchantment : configEnchantments) {
+            if (configEnchantment == null || !configEnchantment.contains(";")) {
+                plugin.debug(
+                        DebugLevel.HIGHEST,
+                        Level.WARNING,
+                        "Enchantment format '" + configEnchantment + "' is incorrect for item " + itemKey +
+                                " in GUI " + menuName + "!",
+                        "Correct format: - '<Enchantment name>;<level>"
+                );
+                continue;
+            }
+
+            String[] parts = configEnchantment.split(";", 2);
+            if (parts.length != 2 || parts[0] == null || parts[1] == null) {
+                plugin.debug(
+                        DebugLevel.HIGHEST,
+                        Level.WARNING,
+                        "Enchantment format '" + configEnchantment + "' is incorrect for item " + itemKey +
+                                " in GUI " + menuName + "!",
+                        "Correct format: - '<Enchantment name>;<level>"
+                );
+                continue;
+            }
+
+            Registry<@NotNull Enchantment> enchantments = registryAccess().getRegistry(RegistryKey.ENCHANTMENT);
+
+            final Enchantment enchantment = enchantments.get(NamespacedKey.minecraft(parts[0].strip().toLowerCase()));
+            if (enchantment == null) {
+                plugin.debug(
+                        DebugLevel.HIGHEST,
+                        Level.WARNING,
+                        "Enchantment '" + parts[0].strip() + "' for item " + itemKey +
+                                " in menu " + menuName + " is not a valid enchantment name!"
+                );
+            }
+
+            Integer level = Ints.tryParse(parts[1].strip());
+            if (level == null) {
+                level = 1;
+                plugin.debug(
+                        DebugLevel.HIGHEST,
+                        Level.WARNING,
+                        "Enchantment level '" + parts[1].strip() + "' is incorrect for item " + itemKey +
+                                " in menu " + menuName + "!"
+                );
+            }
+            parsedEnchantments.put(enchantment, level);
+        }
+        builder.enchantments(parsedEnchantments);
+    }
+
+    public void addDamageOptionToBuilder(final FileConfiguration c, final String currentPath, final String itemKey,
+                                         final String menuName, final MenuItemOptions.MenuItemOptionsBuilder builder) {
+        boolean damageOptionIsPresent = false;
+        String damageValue = null;
+
+        String key = "damage";
+        if (c.contains(currentPath + key)) {
+            damageOptionIsPresent = true;
+            damageValue = c.getString(currentPath + key, "");
+        }
+
+        key = "data";
+        if (c.contains(currentPath + key)) {
+            if (!damageOptionIsPresent) {
+                plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Found 'data' option for item: " + itemKey + " in menu: " + menuName + ". This option " + "is deprecated and will be removed soon. Please use 'damage' instead.");
+                damageValue = c.getString(currentPath + key, "");
+            } else {
+                plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Found 'data' and 'damage' options for item: " + itemKey + " in menu: " + menuName + ". 'data' option is deprecated and will be ignored. Using 'damage' instead.");
+            }
+        }
+
+        if (damageValue == null) {
+            return;
+        }
+
+        if (damageOptionIsPresent) {
+            key = "damage";
+        }
+
+        if (!ItemUtils.isPlaceholderOption(damageValue) && Ints.tryParse(damageValue) == null) {
+            plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Found invalid value for '" + key + "' option for item: " + itemKey + " in menu: " + menuName + ".", "The correct formats for '" + key + "' are:", "  -> <number>", "  -> placeholder-<placeholder>", "Ignoring the invalid value.");
+            return;
+        }
+
+        final String[] parts = damageValue.split("-", 2);
+        if (parts.length >= 2 && !containsPlaceholders(parts[1])) {
+            plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Could not find placeholder for '" + key + "' option for item: " + itemKey + " in menu: " + menuName + ".", "Ignoring the invalid value.");
+            return;
+        }
+
+        builder.damage(parts.length == 1 ? parts[0] : parts[1]);
+    }
+
     private RequirementList getRequirements(FileConfiguration c, String path) {
 
         debug("requirement path: " + path);
@@ -835,7 +1131,7 @@ public class DeluxeMenusConfig {
 
         debug("found requirements list");
 
-        for (String key : c.getConfigurationSection(path + ".requirements").getKeys(false)) {
+        for (String key : Objects.requireNonNull(c.getConfigurationSection(path + ".requirements")).getKeys(false)) {
             debug("requirement: " + key + " from requirements list");
             String rPath = path + ".requirements." + key;
             if (!c.contains(rPath + ".type")) {
@@ -863,13 +1159,15 @@ public class DeluxeMenusConfig {
                     if (c.contains(rPath + ".material")) {
                         String materialName = c.getString(rPath + ".material");
                         try {
+                            assert materialName != null;
                             if (!containsPlaceholders(materialName) && plugin.getItemHooks().values()
                                     .stream()
                                     .filter(x -> materialName.toLowerCase().startsWith(x.getPrefix()))
                                     .findFirst()
-                                    .orElse(null) == null)
+                                    .orElse(null) == null) {
                                 Material.valueOf(materialName.toUpperCase());
-                        } catch (Exception ex) {
+                            }
+                        } catch (AssertionError | NullPointerException ex) {
                             plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "has item requirement at path: " + rPath + " does not specify a valid Material name!");
                             break;
                         }
@@ -1132,223 +1430,5 @@ public class DeluxeMenusConfig {
         }
 
         return list;
-    }
-
-    private ClickHandler getClickHandler(FileConfiguration c, String configPath) {
-
-        List<String> commands = c.getStringList(configPath);
-
-        if (commands.isEmpty()) {
-            return null;
-        }
-
-        final List<ClickAction> actions = new ArrayList<>();
-
-        for (String command : commands) {
-
-            if (command == null || command.isEmpty()) {
-                continue;
-            }
-
-            ActionType type = ActionType.getByStart(command);
-
-            if (type == null) {
-                continue;
-            } else {
-                command = command.replaceFirst(Pattern.quote(type.getIdentifier()), "");
-            }
-
-            if (command.startsWith(" ")) {
-                command = command.trim();
-            }
-
-            ClickAction action = new ClickAction(type, command);
-
-            Matcher d = DELAY_MATCHER.matcher(command);
-
-            if (d.find()) {
-                action.setDelay(d.group(1));
-                command = command.replaceFirst(Pattern.quote(d.group()), "");
-            }
-
-            Matcher ch = CHANCE_MATCHER.matcher(command);
-
-            if (ch.find()) {
-                action.setChance(ch.group(1));
-                command = command.replaceFirst(Pattern.quote(ch.group()), "");
-            }
-
-            action.setExecutable(command);
-            actions.add(action);
-        }
-
-        return getClickHandler(actions);
-    }
-
-    private @Nullable ClickHandler getClickHandler(List<ClickAction> actions) {
-        ClickHandler handler = null;
-
-        if (!actions.isEmpty()) {
-
-            handler = holder -> {
-
-                for (ClickAction action : actions) {
-
-                    if (!action.checkChance(holder)) {
-                        continue;
-                    }
-
-                    final ClickActionTask actionTask = new ClickActionTask(plugin, holder.getViewer().getUniqueId(), action.getType(), action.getExecutable(), holder.getTypedArgs(), holder.parsePlaceholdersInArguments(), holder.parsePlaceholdersAfterArguments());
-
-                    if (action.hasDelay()) {
-                        actionTask.runTaskLater(plugin, action.getDelay(holder));
-                        continue;
-                    }
-
-                    actionTask.runTask(plugin);
-                }
-            };
-        }
-        return handler;
-    }
-
-    private void checkForDeprecatedItemOptions(ConfigurationSection config, String menuName) {
-        final BiConsumer<String, ItemFlag> oldItemFlagOptionCheck = (option, itemFlag) -> {
-            if (!config.contains(option)) {
-                return;
-            }
-
-            plugin.debug(DebugLevel.HIGHEST, Level.WARNING, String.format("Option '%s' of item '%s' in menu '%s' is deprecated and will be removed in the future. Replace it with item_flags: [%s].", option, config.getName(), menuName, itemFlag));
-        };
-
-        oldItemFlagOptionCheck.accept("hide_attributes", ItemFlag.HIDE_ATTRIBUTES);
-        oldItemFlagOptionCheck.accept("hide_enchantments", ItemFlag.HIDE_ENCHANTS);
-        oldItemFlagOptionCheck.accept("hide_unbreakable", ItemFlag.HIDE_UNBREAKABLE);
-    }
-
-    public void debug(String... messages) {
-        plugin.debug(DebugLevel.LOWEST, Level.INFO, messages);
-    }
-
-    public @NotNull DebugLevel debugLevel() {
-        String stringLevel = plugin.getConfig().getString("debug", "HIGHEST");
-
-        if (stringLevel.equalsIgnoreCase("true")) {
-            stringLevel = "LOWEST";
-            plugin.getConfig().set("debug", "LOWEST");
-        } else if (stringLevel.equalsIgnoreCase("false")) {
-            stringLevel = "HIGHEST";
-            plugin.getConfig().set("debug", "HIGHEST");
-        }
-
-        final DebugLevel debugLevel = DebugLevel.getByName(stringLevel);
-        return debugLevel == null ? DebugLevel.LOW : debugLevel;
-    }
-
-    public File getMenuDirector() {
-        return menuDirectory;
-    }
-    public void addEnchantmentsOptionToBuilder(final FileConfiguration c, final String currentPath,
-                                               final String itemKey, final String menuName,
-                                               final MenuItemOptions.MenuItemOptionsBuilder builder) {
-        if (!c.contains(currentPath + "enchantments")) {
-            return;
-        }
-
-        final List<String> configEnchantments = c.getStringList(currentPath + "enchantments");
-        final Map<Enchantment, Integer> parsedEnchantments = new HashMap<>();
-
-        for (final String configEnchantment : configEnchantments) {
-            if (configEnchantment == null || !configEnchantment.contains(";")) {
-                plugin.debug(
-                        DebugLevel.HIGHEST,
-                        Level.WARNING,
-                        "Enchantment format '" + configEnchantment + "' is incorrect for item " + itemKey +
-                                " in GUI " + menuName + "!",
-                        "Correct format: - '<Enchantment name>;<level>"
-                );
-                continue;
-            }
-
-            String[] parts = configEnchantment.split(";", 2);
-            if (parts.length != 2 || parts[0] == null || parts[1] == null) {
-                plugin.debug(
-                        DebugLevel.HIGHEST,
-                        Level.WARNING,
-                        "Enchantment format '" + configEnchantment + "' is incorrect for item " + itemKey +
-                                " in GUI " + menuName + "!",
-                        "Correct format: - '<Enchantment name>;<level>"
-                );
-                continue;
-            }
-
-            Registry<@NotNull Enchantment> enchantments = registryAccess().getRegistry(RegistryKey.ENCHANTMENT);
-
-            final Enchantment enchantment = enchantments.get(NamespacedKey.minecraft(parts[0].strip().toLowerCase()));
-            if (enchantment == null) {
-                plugin.debug(
-                        DebugLevel.HIGHEST,
-                        Level.WARNING,
-                        "Enchantment '" + parts[0].strip() + "' for item " + itemKey +
-                                " in menu " + menuName + " is not a valid enchantment name!"
-                );
-            }
-
-            Integer level = Ints.tryParse(parts[1].strip());
-            if (level == null) {
-                level = 1;
-                plugin.debug(
-                        DebugLevel.HIGHEST,
-                        Level.WARNING,
-                        "Enchantment level '" + parts[1].strip() + "' is incorrect for item " + itemKey +
-                                " in menu " + menuName + "!"
-                );
-            }
-            parsedEnchantments.put(enchantment, level);
-        }
-        builder.enchantments(parsedEnchantments);
-    }
-
-    public void addDamageOptionToBuilder(final FileConfiguration c, final String currentPath, final String itemKey,
-                                         final String menuName, final MenuItemOptions.MenuItemOptionsBuilder builder) {
-        boolean damageOptionIsPresent = false;
-        String damageValue = null;
-
-        String key = "damage";
-        if (c.contains(currentPath + key)) {
-            damageOptionIsPresent = true;
-            damageValue = c.getString(currentPath + key, "");
-        }
-
-        key = "data";
-        if (c.contains(currentPath + key)) {
-            if (!damageOptionIsPresent) {
-                plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Found 'data' option for item: " + itemKey + " in menu: " + menuName + ". This option " + "is deprecated and will be removed soon. Please use 'damage' instead.");
-                damageValue = c.getString(currentPath + key, "");
-            } else {
-                plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Found 'data' and 'damage' options for item: " + itemKey + " in menu: " + menuName + ". 'data' option is deprecated and will be ignored. Using 'damage' instead.");
-            }
-        }
-
-        if (damageValue == null) {
-            return;
-        }
-
-        if (damageOptionIsPresent) {
-            key = "damage";
-        }
-
-        if (!ItemUtils.isPlaceholderOption(damageValue) && Ints.tryParse(damageValue) == null) {
-            plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Found invalid value for '" + key + "' option for item: " + itemKey + " in menu: " + menuName + ".", "The correct formats for '" + key + "' are:", "  -> <number>", "  -> placeholder-<placeholder>", "Ignoring the invalid value.");
-            return;
-        }
-
-        final String[] parts = damageValue.split("-", 2);
-        if (parts.length >= 2 && !containsPlaceholders(parts[1])) {
-            plugin.debug(DebugLevel.HIGHEST, Level.WARNING, "Could not find placeholder for '" + key + "' option for item: " + itemKey + " in menu: " + menuName + ".", "Ignoring the invalid value.");
-            return;
-        }
-
-        builder.damage(parts.length == 1 ? parts[0] : parts[1]);
     }
 }
